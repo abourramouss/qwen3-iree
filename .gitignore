@@ -1,0 +1,7 @@
+*.vmfb
+*.irpa
+*.gguf
+*.pyc
+__pycache__/
+*.ptx
+*.cubin
