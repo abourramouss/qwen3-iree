@@ -47,6 +47,7 @@ case "$MODE" in
       fi
     done
     $IREE_COMPILE "$MLIR" $CUDA_FLAGS \
+      --iree-hal-link-executables=false \
       --iree-hal-executable-object-search-path="$K" \
       "--iree-hal-substitute-executable-source=decode_dispatch_3=$K/dispatch_3.mlir" \
       "--iree-hal-substitute-executable-source=decode_dispatch_4=$K/dispatch_4.mlir" \
