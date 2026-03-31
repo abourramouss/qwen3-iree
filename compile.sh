@@ -9,16 +9,19 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-IREE_COMPILE="${IREE_COMPILE:-$(command -v iree-compile 2>/dev/null || echo ~/iree/build/tools/iree-compile)}"
+IREE_COMPILE="${IREE_COMPILE:-$HOME/iree/build/tools/iree-compile}"
 MLIR="$SCRIPT_DIR/model/qwen3_full.mlir"
-OUTPUT="${OUTPUT:-qwen3.vmfb}"
+MODE="${1:---mlir}"
+case "$MODE" in
+  --mlir|"") OUTPUT="${OUTPUT:-qwen3_mlir.vmfb}" ;;
+  --cuda)    OUTPUT="${OUTPUT:-qwen3_cuda.vmfb}" ;;
+  --no-kernels) OUTPUT="${OUTPUT:-qwen3_codegen.vmfb}" ;;
+esac
 
 CUDA_FLAGS="--iree-hal-target-device=cuda \
   --iree-cuda-target=sm_87 \
   --iree-cuda-target-features=+ptx74 \
   --iree-hal-indirect-command-buffers=false"
-
-MODE="${1:---mlir}"
 
 case "$MODE" in
   --mlir|"")
