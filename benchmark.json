@@ -1,0 +1,86 @@
+{
+  "codegen": {
+    "tps": [
+      22.664932972793753,
+      27.19928139123557,
+      29.081404144689163,
+      27.31120130494156,
+      27.2932305249796,
+      27.194852491245612,
+      26.65445994011778,
+      25.330986087753978,
+      23.63924156262352,
+      23.75886709411414
+    ],
+    "mean": 26.012845751449465,
+    "std": 1.9581999478875594,
+    "prompts": [
+      "Hi",
+      "What is 2+2?",
+      "Define entropy",
+      "What is the speed of light?",
+      "Name the planets in our solar system",
+      "Write a haiku about the ocean",
+      "Explain what a transformer neural network is",
+      "What are the differences between Python and C++?",
+      "Explain the theory of relativity in simple terms and give ex",
+      "Write a short story about a robot learning to paint, include"
+    ]
+  },
+  "cuda": {
+    "tps": [
+      30.29464489028653,
+      27.76648095374594,
+      29.72832165678989,
+      27.73607706156318,
+      27.737341266833916,
+      27.78935144561287,
+      27.08909337343281,
+      25.75687022460625,
+      24.08522746662324,
+      23.955363375410638
+    ],
+    "mean": 27.193877171490527,
+    "std": 1.988406677367811,
+    "prompts": [
+      "Hi",
+      "What is 2+2?",
+      "Define entropy",
+      "What is the speed of light?",
+      "Name the planets in our solar system",
+      "Write a haiku about the ocean",
+      "Explain what a transformer neural network is",
+      "What are the differences between Python and C++?",
+      "Explain the theory of relativity in simple terms and give ex",
+      "Write a short story about a robot learning to paint, include"
+    ]
+  },
+  "mlir": {
+    "tps": [
+      28.287607769574795,
+      25.81691328694734,
+      27.561283703181427,
+      26.063561113312097,
+      26.1452418572476,
+      26.04543238084133,
+      25.439263630685826,
+      24.336319607875236,
+      22.825102307219158,
+      22.6712271831441
+    ],
+    "mean": 25.519195284002894,
+    "std": 1.7222864444340187,
+    "prompts": [
+      "Hi",
+      "What is 2+2?",
+      "Define entropy",
+      "What is the speed of light?",
+      "Name the planets in our solar system",
+      "Write a haiku about the ocean",
+      "Explain what a transformer neural network is",
+      "What are the differences between Python and C++?",
+      "Explain the theory of relativity in simple terms and give ex",
+      "Write a short story about a robot learning to paint, include"
+    ]
+  }
+}
