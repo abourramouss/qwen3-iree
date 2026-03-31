@@ -1,51 +1,90 @@
 #!/usr/bin/env python3
 """Qwen3-0.6B interactive chat on IREE CUDA runtime."""
 import sys, time, argparse, numpy as np, os
+from pathlib import Path
+
+# Auto-detect IREE runtime
+_script_dir = Path(__file__).resolve().parent
+_repo_dir = _script_dir.parent
+_runtime_dir = _repo_dir / "runtime"
+if _runtime_dir.exists():
+    sys.path.insert(0, str(_runtime_dir))
+
 from iree.runtime import *
 from tokenizers import Tokenizer
 
 
+def find_file(name, search_dirs):
+    """Search for a file in multiple directories."""
+    for d in search_dirs:
+        p = Path(d).expanduser() / name
+        if p.exists():
+            return str(p)
+    return None
+
+
 def main():
     parser = argparse.ArgumentParser(description="Chat with Qwen3-0.6B via IREE")
-    parser.add_argument("--vmfb", default="qwen3.vmfb", help="Compiled VMFB path")
-    parser.add_argument("--tokenizer", default=None, help="tokenizer.json path (auto-detected from HF cache)")
-    parser.add_argument("--f16-irpa", default=None, help="f16 stacked IRPA path")
-    parser.add_argument("--q8-irpa", default=None, help="Q8_0 stacked IRPA path")
-    parser.add_argument("--output-irpa", default=None, help="Output weight (transposed) IRPA path")
+    parser.add_argument("--vmfb", default=None, help="Compiled VMFB path")
+    parser.add_argument("--weights", default=None, help="Directory containing .irpa weight files")
+    parser.add_argument("--tokenizer", default=None, help="tokenizer.json path")
     parser.add_argument("--max-tokens", type=int, default=256, help="Max tokens to generate")
     parser.add_argument("--device", default="cuda", help="IREE device (cuda, llvm-cpu)")
     args = parser.parse_args()
 
-    # Auto-detect tokenizer from HF cache
+    # Search paths for files
+    search = [
+        _repo_dir,
+        _repo_dir / "weights",
+        Path("~").expanduser() / "models",
+        Path("."),
+    ]
+    if args.weights:
+        search.insert(0, Path(args.weights))
+
+    # Find VMFB
+    if args.vmfb is None:
+        for name in ["qwen3_codegen.vmfb", "qwen3_cuda.vmfb", "qwen3_mlir.vmfb", "qwen3.vmfb"]:
+            args.vmfb = find_file(name, search)
+            if args.vmfb:
+                break
+    if not args.vmfb or not os.path.exists(args.vmfb):
+        print("Error: VMFB not found. Use --vmfb PATH or place in repo root.", file=sys.stderr)
+        sys.exit(1)
+
+    # Find tokenizer
     if args.tokenizer is None:
-        hf_cache = os.path.expanduser("~/models/qwen3-0.6b/models--Qwen--Qwen3-0.6B/snapshots")
-        if os.path.isdir(hf_cache):
-            snap = next(os.path.join(hf_cache, d) for d in os.listdir(hf_cache)
-                        if os.path.isdir(os.path.join(hf_cache, d)))
-            args.tokenizer = os.path.join(snap, "tokenizer.json")
+        args.tokenizer = find_file("tokenizer.json", search)
+        if not args.tokenizer:
+            # Check HF cache
+            hf = Path("~").expanduser() / "models/qwen3-0.6b/models--Qwen--Qwen3-0.6B/snapshots"
+            if hf.is_dir():
+                snap = next(hf.iterdir())
+                args.tokenizer = str(snap / "tokenizer.json")
     if not args.tokenizer or not os.path.exists(args.tokenizer):
         print("Error: tokenizer.json not found. Use --tokenizer PATH", file=sys.stderr)
         sys.exit(1)
     tokenizer = Tokenizer.from_file(args.tokenizer)
 
-    # Auto-detect IRPAs
-    models_dir = os.path.expanduser("~/models")
-    if args.f16_irpa is None:
-        args.f16_irpa = os.path.join(models_dir, "qwen3-0.6b-f16-stacked.irpa")
-    if args.output_irpa is None:
-        args.output_irpa = os.path.join(models_dir, "qwen3-output-T.irpa")
-    if args.q8_irpa is None:
-        args.q8_irpa = os.path.join(models_dir, "qwen3-0.6b-q8-stacked.irpa")
+    # Find weight files
+    f16_irpa = find_file("qwen3-0.6b-f16-stacked.irpa", search)
+    out_irpa = find_file("qwen3-output-T.irpa", search)
+    q8_irpa = find_file("qwen3-0.6b-q8-stacked.irpa", search)
+
+    if not f16_irpa or not out_irpa:
+        print("Error: weight files not found. Use --weights DIR", file=sys.stderr)
+        print("  Need: qwen3-0.6b-f16-stacked.irpa, qwen3-output-T.irpa", file=sys.stderr)
+        sys.exit(1)
 
     # Load IREE runtime
     inst = VmInstance()
     device = get_device(args.device)
     hal = create_hal_module(inst, device)
     pi = ParameterIndex()
-    pi.load(args.f16_irpa)
-    pi.load(args.output_irpa)
-    if os.path.exists(args.q8_irpa):
-        pi.load(args.q8_irpa)
+    pi.load(f16_irpa)
+    pi.load(out_irpa)
+    if q8_irpa and os.path.exists(q8_irpa):
+        pi.load(q8_irpa)
     params = create_io_parameters_module(inst, pi.create_provider(scope="model"))
     with open(args.vmfb, "rb") as f:
         mod = VmModule.copy_buffer(inst, f.read())
@@ -61,7 +100,7 @@ def main():
             device=device, buffer=np.ascontiguousarray(arr),
             element_type=HalElementType.SINT_64)
 
-    print("Qwen3-0.6B on IREE (type 'quit' to exit)\n")
+    print(f"Qwen3-0.6B on IREE ({os.path.basename(args.vmfb)}, type 'quit' to exit)\n")
     while True:
         try:
             text = input("> ")
@@ -90,7 +129,6 @@ def main():
                           implicit_host_transfer=True).to_host()
         n = int(r.get_variant(1))
 
-        # Trim at EOS (batch decode may overshoot)
         tokens_out = out[:n].tolist()
         if EOS_TOKEN in tokens_out:
             tokens_out = tokens_out[:tokens_out.index(EOS_TOKEN)]
