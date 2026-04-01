@@ -21,7 +21,12 @@ esac
 CUDA_FLAGS="--iree-hal-target-device=cuda \
   --iree-cuda-target=sm_87 \
   --iree-cuda-target-features=+ptx74 \
-  --iree-hal-indirect-command-buffers=false"
+  --iree-hal-indirect-command-buffers=false \
+  --iree-opt-level=O3 \
+  --iree-opt-strip-assertions \
+  --iree-vm-bytecode-module-strip-debug-ops \
+  --iree-vm-bytecode-module-strip-source-map \
+  --iree-hal-executable-debug-level=0"
 
 case "$MODE" in
   --mlir|"")
